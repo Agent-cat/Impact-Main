@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-outfit);
+  --font-oswald: var(--font-oswald);
+  --font-milker: Milker;
+  --font-poppins: var(--font-poppins);
+}
+
+@font-face {
+  font-family: 'Milker';
+  src: url('/font/Milker.otf') format('opentype');
+  font-weight: 900;
+  font-style: bold;
+}
+
+@layer utilities {
+  .stroke-text {
+    -webkit-text-stroke: 1px black;
+    color: transparent;
+  }
+}
