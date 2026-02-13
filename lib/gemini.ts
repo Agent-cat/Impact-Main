@@ -14,7 +14,7 @@ export const analyzeImpact = async (diff: Array<{filename: string, patch: string
     }
 
     const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash", // Using flash for speed/cost, pro if high precision is needed
+        model: "gemini-flash-latest", // Using flash for speed/cost, pro if high precision is needed
         generationConfig: { responseMimeType: "application/json" }
     });
 
@@ -28,7 +28,7 @@ export const analyzeImpact = async (diff: Array<{filename: string, patch: string
 
     const prompt = `
     You are an expert software test engineer specialized in Test Impact Analysis (TIA).
-    Your goal is to identify which test files MUST be executed given a set of code changes to ensure no regressions, while minimizing the number of tests run.
+    Your goal is to identify which test files MUST be executed given a set of code changes to ensure no regressions.
 
     CODE CHANGES (Unified Diff):
     ${changesText}
@@ -38,17 +38,17 @@ export const analyzeImpact = async (diff: Array<{filename: string, patch: string
 
     CRITERIA:
     1. Direct Impact: If a file has a corresponding test (e.g., 'lib/auth.ts' -> 'tests/auth.test.ts'), include it.
-    2. Indirect Impact: If a changed file is a dependency or utility (e.g., 'lib/utils.ts'), include tests for modules that likely use it.
-    3. Structural Closeness: Files in the same directory often share dependencies.
-    4. Ignore: Non-code changes (README, .gitignore, comments only) should not trigger tests unless they are configuration files that affect behavior.
+    2. Indirect Impact: If a changed file is a dependency (imported by other files), include tests that cover those dependent files. Analyze imports in the patch.
+    3. Exclude Unrelated: Do NOT include tests that have no dependency on the changed files. Do NOT include tests just because they are in the same folder.
+    4. Ignore: Non-code changes (README, .gitignore) should not trigger tests.
 
     INSTRUCTIONS:
-    - Analyze the imports and logic in the patches to understand dependencies.
-    - Be conservative: if you are unsure, include the test.
-    - Return a JSON object with a single key "impactedTests" which is an array of strings (the file paths).
+    - Analyze the code changes to understand what logic has been modified.
+    - Trace dependencies based on imports visible in the patch or standard project structure conventions.
+    - Return a JSON object with a single key "impactedTests" which is an array of strings.
 
     Example output:
-    { "impactedTests": ["tests/login.test.ts", "tests/ui/header.spec.ts"] }
+    { "impactedTests": ["tests/login.test.ts"] }
     `;
 
     try {
