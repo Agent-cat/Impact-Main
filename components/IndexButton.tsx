@@ -36,8 +36,8 @@ export default function IndexButton({ owner, repo }: { owner: string; repo: stri
       disabled={loading}
       className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
         done
-        ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
-        : "bg-indigo-50 text-indigo-600 border border-indigo-100 hover:bg-indigo-100"
+        ? "bg-emerald-900/20 text-emerald-400 border border-emerald-900/50"
+        : "bg-indigo-900/20 text-indigo-400 border border-indigo-900/50 hover:bg-indigo-900/30"
       }`}
     >
       {loading ? (

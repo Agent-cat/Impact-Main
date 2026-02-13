@@ -83,6 +83,7 @@ model PREvaluation {
   headSha   String?  // The commit SHA this analysis was run for
   impactedTests String[]
   skippedTests  String[]
+  changedFiles  Json? // Stores list of { filename, status, additions, deletions, patch }
 
   // CI Results (updated later)
   testsRun     Int?
@@ -92,7 +93,8 @@ model PREvaluation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([owner, repo, prNumber])
+  @@unique([owner, repo, prNumber, headSha])
+  @@index([owner, repo, prNumber])
 }
 
 model RepoIndex {

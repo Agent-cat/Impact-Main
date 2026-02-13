@@ -80,30 +80,16 @@ export const POST = async (req: Request) => {
         impactedTests = impactedTests.filter(t => testFiles?.includes(t));
 
         // 4. Save to Database
-        const record = await prisma.pREvaluation.upsert({
-            where: {
-                owner_repo_prNumber: {
-                    owner,
-                    repo,
-                    prNumber
-                }
-            },
-            update: {
-                headSha, // Update SHA if PR updated
-                impactedTests,
-                skippedTests: testFiles.filter(t => !impactedTests.includes(t)),
-                // Reset metrics on new run
-                testsRun: null,
-                testsFailed: null,
-                timeSaved: null
-            },
-            create: {
+        // 4. Save to Database (Create new entry for history)
+        const record = await prisma.pREvaluation.create({
+            data: {
                 owner,
                 repo,
                 prNumber,
                 headSha,
                 impactedTests,
-                skippedTests: testFiles.filter(t => !impactedTests.includes(t))
+                skippedTests: testFiles.filter(t => !impactedTests.includes(t)),
+                changedFiles: changedFiles // Save the full diff/file info
             }
         });
 

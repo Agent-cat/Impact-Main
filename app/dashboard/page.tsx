@@ -45,7 +45,7 @@ export default async function DashboardPage() {
             <div className="bg-indigo-600 p-1.5 rounded-lg">
               <Zap className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600">
+            <span className="text-xl font-bold bg-clip-text text-transparent bg-linear-to-r from-indigo-600 to-violet-600">
               ImpacAnalyzer
             </span>
           </div>
@@ -53,7 +53,7 @@ export default async function DashboardPage() {
             <Link href="/" className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors">
               Repositories
             </Link>
-            <div className="h-8 w-[1px] bg-gray-200"></div>
+            <div className="h-8 w-px bg-gray-200"></div>
             <div className="flex items-center gap-2">
                 <img src={session.user.image || ""} className="w-8 h-8 rounded-full border border-gray-200" alt="" />
                 <span className="text-sm text-gray-700 hidden sm:block">{session.user.name}</span>
@@ -137,7 +137,9 @@ export default async function DashboardPage() {
                                                 <GitPullRequest className="w-4 h-4 text-gray-600" />
                                             </div>
                                             <div>
-                                                <div className="font-medium text-gray-900">{ev.owner}/{ev.repo}</div>
+                                                <Link href={`/${ev.owner}/${ev.repo}`} className="font-medium text-gray-900 hover:text-indigo-600 transition-colors">
+                                                    {ev.owner}/{ev.repo}
+                                                </Link>
                                                 <div className="text-xs text-gray-500 flex items-center gap-1">
                                                     <span>PR #{ev.prNumber}</span>
                                                     {ev.headSha && (
