@@ -11,13 +11,28 @@ export const POST = async (req: Request) => {
         }
 
         // Update the PREvaluation record
+        const prNum = parseInt(pr);
+
+        // Find the most recent evaluation for this PR
+        const latestEvaluation = await prisma.pREvaluation.findFirst({
+            where: {
+                owner,
+                repo,
+                prNumber: prNum,
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
+        });
+
+        if (!latestEvaluation) {
+            return NextResponse.json({ error: "No analysis found for this PR" }, { status: 404 });
+        }
+
+        // Update the PREvaluation record using its ID
         const updated = await prisma.pREvaluation.update({
             where: {
-                owner_repo_prNumber: {
-                    owner,
-                    repo,
-                    prNumber: parseInt(pr),
-                },
+                id: latestEvaluation.id
             },
             data: {
                 testsRun: parseInt(testsRun),
