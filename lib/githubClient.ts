@@ -11,13 +11,28 @@ export const octokit = new Octokit({
 
 export const getChangedFiles = async (owner: string, repo: string, prNumber: number) => {
   try {
-    const { data: files } = await octokit.rest.pulls.listFiles({
+    // Fetch commits to find the latest one
+    const { data: commits } = await octokit.rest.pulls.listCommits({
       owner,
       repo,
       pull_number: prNumber,
+      per_page: 100, // Fetch recent commits
     });
 
-    return files.map(file => ({
+    if (commits.length === 0) {
+      return [];
+    }
+
+    const latestCommitSha = commits[commits.length - 1].sha;
+
+    // Fetch details of the latest commit, including files
+    const { data: commit } = await octokit.rest.repos.getCommit({
+        owner,
+        repo,
+        ref: latestCommitSha
+    });
+
+    return (commit.files || []).map(file => ({
       filename: file.filename,
       status: file.status,
       additions: file.additions,
@@ -60,7 +75,7 @@ export const getRepoFileStructure = async (owner: string, repo: string, branch =
             owner,
             repo,
             tree_sha: treeSha,
-            recursive: "true",
+            recursive: "1",
         });
 
         return treeData.tree.map(item => item.path).filter((path): path is string => !!path);

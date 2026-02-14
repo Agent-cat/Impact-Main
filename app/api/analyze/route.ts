@@ -29,12 +29,13 @@ export const POST = async (req: Request) => {
 
         if (existingAnalysis) {
             console.log(`Returning cached analysis for ${owner}/${repo} PR #${prNumber} @ ${headSha}`);
-            return NextResponse.json({
-                impactedTests: existingAnalysis.impactedTests,
-                allTests: [], // Optional, maybe we don't need to return full list every time
-                evaluationId: existingAnalysis.id,
-                cached: true
-            });
+            // FORCED REFRESH: Ignore cache to fix missing tests issue permanently
+            // return NextResponse.json({
+            //     impactedTests: existingAnalysis.impactedTests,
+            //     allTests: [],
+            //     evaluationId: existingAnalysis.id,
+            //     cached: true
+            // });
         }
 
         // 1. Fetch PR Diff
@@ -42,10 +43,12 @@ export const POST = async (req: Request) => {
         const changedFiles = await getChangedFiles(owner, repo, prNumber);
 
         // 2. Fetch or Build Repo Index
-        let testFiles = await getRepoIndex(owner, repo);
+        // FORCE REBUILD OF INDEX by ignoring cache
+        // let testFiles = await getRepoIndex(owner, repo);
+        let testFiles: string[] | null = null;
 
-        if (!testFiles || testFiles.length === 0) {
-            console.log(`Index missing for ${owner}/${repo}, building now...`);
+        if (!testFiles) {
+            console.log(`Index missing or forced rebuild for ${owner}/${repo}, building now...`);
             const structure = await getRepoFileStructure(owner, repo); // Default branch
             testFiles = filterTestFiles(structure);
             await saveRepoIndex(owner, repo, testFiles);
