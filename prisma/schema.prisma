@@ -80,12 +80,12 @@ model PREvaluation {
   owner     String
   repo      String
   prNumber  Int
-  headSha   String?  // The commit SHA this analysis was run for
+  headSha   String?
   impactedTests String[]
   skippedTests  String[]
-  changedFiles  Json? // Stores list of { filename, status, additions, deletions, patch }
+  changedFiles  Json?
 
-  // CI Results (updated later)
+
   testsRun     Int?
   testsFailed  Int?
   timeSaved    String?
@@ -101,7 +101,7 @@ model RepoIndex {
   id        String   @id @default(cuid())
   owner     String
   repo      String
-  testFiles String[] // List of test file paths
+  testFiles String[]
   lastIndexedAt DateTime @default(now())
 
   @@unique([owner, repo])

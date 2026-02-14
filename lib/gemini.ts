@@ -28,7 +28,7 @@ export const analyzeImpact = async (diff: Array<{filename: string, patch: string
 
     const prompt = `
     You are an expert software test engineer specialized in Test Impact Analysis (TIA).
-    Your goal is to identify which test files MUST be executed given a set of code changes from the LATEST COMMIT.
+    Your goal is to identify which test files MUST be executed given a set of code changes.
 
     CODE CHANGES (Unified Diff):
     ${changesText}
@@ -37,18 +37,16 @@ export const analyzeImpact = async (diff: Array<{filename: string, patch: string
     ${testListText}
 
     CRITERIA:
-    1. Direct Impact: If a source file is modified (e.g., 'lib/auth.ts'), include its direct test file (e.g., 'tests/auth.test.ts').
-    2. Indirect Impact (Dependency Chain): If a changed file is imported by other files, include tests that cover those *dependent* files. strictly checking import paths in the codebase (inferred).
-    3. Exclude Unrelated: Do NOT include tests that have no dependency on the changed files. Do NOT include tests just because they are in the same folder or have similar names.
-    4. Ignore Scripts/Config: Changes to 'scripts/', 'package.json', or config files should generally NOT triggers app tests unless they fundamentally change the build/test environment.
-    5. Self-Tests: If a test file itself is modified, it MUST be included.
+    1. **Direct Match**: If 'lib/foo.ts' changes, you MUST include 'tests/foo.test.ts' (or similar). This is the most important rule.
+    2. **Dependency**: If a shared library is changed, include tests for components that use it, BUT ONLY IF you are confident.
+    3. **Conservative**: Do NOT include tests unless they are clearly related. Better to run fewer tests than all tests (unless it's a critical core change).
+    4. **Ignore Config**: Changes to non-code files (README, .gitignore, etc.) should generally NOT impact tests.
+    5. **Self-Tests**: If a test file itself is changed, include it.
 
     INSTRUCTIONS:
-    - Analyze the logic modification in the provided <file> blocks.
-    - Be Conservative: Only select tests where there is a clear causal link (import or functional dependency).
-    - Return a JSON object with "impactedTests" array.
+    - Return a JSON object with a single field "impactedTests" containing an array of strings.
+    - Return ONLY the file paths from the "AVAILABLE TEST FILES" list. Do not invent paths.
     - If NO tests are impacted, return { "impactedTests": [] }
-    - RESPONSE FORMAT: Pure JSON only. No markdown. No comments.
 
     Example output:
     { "impactedTests": ["tests/login.test.ts"] }
@@ -59,8 +57,11 @@ export const analyzeImpact = async (diff: Array<{filename: string, patch: string
     let attempt = 0;
     while (attempt < maxRetries) {
         try {
+            console.log(`Sending prompt to Gemini (Attempt ${attempt + 1})...`);
             const result = await model.generateContent(prompt);
             const responseText = result.response.text();
+
+            console.log("Raw Gemini Response:", responseText);
 
             let cleanResponse = responseText.replace(/```json/g, "").replace(/```/g, "").trim();
 

@@ -11,33 +11,19 @@ export const octokit = new Octokit({
 
 export const getChangedFiles = async (owner: string, repo: string, prNumber: number) => {
   try {
-    // Fetch commits to find the latest one
-    const { data: commits } = await octokit.rest.pulls.listCommits({
+    const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
       owner,
       repo,
       pull_number: prNumber,
-      per_page: 100, // Fetch recent commits
+      per_page: 100,
     });
 
-    if (commits.length === 0) {
-      return [];
-    }
-
-    const latestCommitSha = commits[commits.length - 1].sha;
-
-    // Fetch details of the latest commit, including files
-    const { data: commit } = await octokit.rest.repos.getCommit({
-        owner,
-        repo,
-        ref: latestCommitSha
-    });
-
-    return (commit.files || []).map(file => ({
+    return files.map(file => ({
       filename: file.filename,
       status: file.status,
       additions: file.additions,
       deletions: file.deletions,
-      patch: file.patch || "", // The diff
+      patch: file.patch || "",
     }));
   } catch (error) {
     console.error("Error fetching PR files:", error);

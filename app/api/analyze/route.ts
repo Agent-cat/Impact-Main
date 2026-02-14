@@ -29,13 +29,12 @@ export const POST = async (req: Request) => {
 
         if (existingAnalysis) {
             console.log(`Returning cached analysis for ${owner}/${repo} PR #${prNumber} @ ${headSha}`);
-            // FORCED REFRESH: Ignore cache to fix missing tests issue permanently
-            // return NextResponse.json({
-            //     impactedTests: existingAnalysis.impactedTests,
-            //     allTests: [],
-            //     evaluationId: existingAnalysis.id,
-            //     cached: true
-            // });
+            return NextResponse.json({
+                impactedTests: existingAnalysis.impactedTests,
+                allTests: [],
+                evaluationId: existingAnalysis.id,
+                cached: true
+            });
         }
 
         // 1. Fetch PR Diff
@@ -43,9 +42,9 @@ export const POST = async (req: Request) => {
         const changedFiles = await getChangedFiles(owner, repo, prNumber);
 
         // 2. Fetch or Build Repo Index
-        // FORCE REBUILD OF INDEX by ignoring cache
-        // let testFiles = await getRepoIndex(owner, repo);
-        let testFiles: string[] | null = null;
+        // Try to get from DB first
+        let testFiles = await getRepoIndex(owner, repo);
+        // let testFiles: string[] | null = null;
 
         if (!testFiles) {
             console.log(`Index missing or forced rebuild for ${owner}/${repo}, building now...`);
@@ -71,12 +70,17 @@ export const POST = async (req: Request) => {
         }));
 
         let impactedTests: string[] = [];
+        let changeType = "ai-analyzed";
         try {
+            console.log(`Starting Gemini analysis with ${changesForAI.length} changed files and ${testFiles.length} candidate tests.`);
             impactedTests = await analyzeImpact(changesForAI, testFiles);
+            console.log("Gemini identified impacted tests:", impactedTests);
         } catch (geminiError) {
             console.error("Gemini Analysis Failed:", geminiError);
             // Fallback: If AI fails, we must be safe and run ALL tests.
+            console.warn("Falling back to ALL tests due to AI failure.");
             impactedTests = testFiles;
+            changeType = "fallback-all";
         }
 
         // Integrity check: Filter out any hallucinations not in the actual test list
@@ -100,7 +104,8 @@ export const POST = async (req: Request) => {
         return NextResponse.json({
             impactedTests,
             allTests: testFiles,
-            evaluationId: record.id
+            evaluationId: record.id,
+            analysisType: changeType
         });
 
     } catch (error) {
