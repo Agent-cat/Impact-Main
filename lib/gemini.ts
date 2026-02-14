@@ -14,7 +14,7 @@ export const analyzeImpact = async (diff: Array<{filename: string, patch: string
     }
 
     const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash",
+        model: "gemini-1.5-flash-latest",
         generationConfig: { responseMimeType: "application/json" }
     });
 
@@ -37,15 +37,15 @@ export const analyzeImpact = async (diff: Array<{filename: string, patch: string
     ${testListText}
 
     CRITERIA:
-    1. **Direct Match**: If 'lib/foo.ts' changes, you MUST include 'tests/foo.test.ts' (or similar). This is the most important rule.
-    2. **Dependency**: If a shared library is changed, include tests for components that use it, BUT ONLY IF you are confident.
-    3. **Conservative**: Do NOT include tests unless they are clearly related. Better to run fewer tests than all tests (unless it's a critical core change).
-    4. **Ignore Config**: Changes to non-code files (README, .gitignore, etc.) should generally NOT impact tests.
+    1. **Direct Match**: If 'lib/foo.ts' changes, you MUST include 'tests/foo.test.ts'.
+    2. **Strict Dependency**: ONLY include other tests if the changed code is imported/used by the code under test.
+    3. **NO GUESSING**: Do NOT include tests just because they are in the same folder. 'todoStore.test.ts' does NOT test 'todoValidator.ts' unless it imports it.
+    4. **Conservative**: If in doubt, exclude. It is better to miss a subtle edge case than to run the entire suite appropriately.
     5. **Self-Tests**: If a test file itself is changed, include it.
 
     INSTRUCTIONS:
     - Return a JSON object with a single field "impactedTests" containing an array of strings.
-    - Return ONLY the file paths from the "AVAILABLE TEST FILES" list. Do not invent paths.
+    - Return ONLY the file paths from the "AVAILABLE TEST FILES" list.
     - If NO tests are impacted, return { "impactedTests": [] }
 
     Example output:

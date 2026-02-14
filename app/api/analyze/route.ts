@@ -77,10 +77,26 @@ export const POST = async (req: Request) => {
             console.log("Gemini identified impacted tests:", impactedTests);
         } catch (geminiError) {
             console.error("Gemini Analysis Failed:", geminiError);
-            // Fallback: If AI fails, we must be safe and run ALL tests.
-            console.warn("Falling back to ALL tests due to AI failure.");
-            impactedTests = testFiles;
-            changeType = "fallback-all";
+
+            // Smart Fallback: Try to find direct matches by filename
+            console.warn("Attempting smart fallback based on filenames...");
+            const simpleMatches = testFiles.filter(testFile => {
+                return changesForAI.some(change => {
+                    // unexpected robustness: stripping paths and extensions to find 'todoValidator' in 'todoValidator.test.ts'
+                    const baseName = change.filename.split('/').pop()?.split('.')[0];
+                    return baseName && testFile.includes(baseName);
+                });
+            });
+
+            if (simpleMatches.length > 0) {
+                console.log("Smart fallback found matches:", simpleMatches);
+                impactedTests = simpleMatches;
+                changeType = "fallback-heuristic";
+            } else {
+                 console.warn("Smart fallback failed. defaulting to ALL tests.");
+                 impactedTests = testFiles;
+                 changeType = "fallback-all";
+            }
         }
 
         // Integrity check: Filter out any hallucinations not in the actual test list
