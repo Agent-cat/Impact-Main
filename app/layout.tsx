@@ -1,6 +1,6 @@
 import React from "react";
 import type { Metadata } from "next";
-import { Outfit, Oswald, Poppins } from "next/font/google";
+import { Outfit } from "next/font/google";
 import "./globals.css";
 
 import { Toaster } from "sonner";
@@ -10,20 +10,9 @@ const outfit = Outfit({
   subsets: ["latin"],
 });
 
-const oswald = Oswald({
-  variable: "--font-oswald",
-  subsets: ["latin"],
-});
-
-const poppins = Poppins({
-  variable: "--font-poppins",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-});
-
 export const metadata: Metadata = {
-  title: "Impact",
-  description: "😇",
+  title: "ImpacAnalyzer",
+  description: "Intelligent Test Impact Analysis",
   icons: {
     icon: "/favicon.ico",
   },
@@ -37,19 +26,18 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${outfit.variable} ${oswald.variable} ${poppins.variable} antialiased font-sans`}
+        className={`${outfit.variable} antialiased font-sans bg-black`}
       >
         {children}
         <Toaster
           position="top-center"
           richColors
           toastOptions={{
-            className:
-              "font-sans !bg-white !border-gray-200 !shadow-xl !rounded-2xl !p-4",
+            className: "font-sans !bg-neutral-900 !border-neutral-800 !shadow-xl !rounded-lg !p-4",
             style: {
-              background: "white",
-              color: "#1a1a1a",
-              border: "1px solid #E5E7EB",
+              background: "#171717",
+              color: "#e5e5e5",
+              border: "1px solid #262626",
             },
           }}
         />

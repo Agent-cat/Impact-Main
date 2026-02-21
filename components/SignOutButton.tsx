@@ -2,8 +2,7 @@
 
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
-import { toast } from "sonner"; // If sonner is installed, otherwise console.log/alert
+import { toast } from "sonner";
 
 export default function SignOutButton() {
   const router = useRouter();
@@ -15,7 +14,7 @@ export default function SignOutButton() {
           toast.success("Successfully signed out");
           router.replace("/signin");
         },
-        onError: (ctx) => {
+        onError: () => {
           toast.error("Failed to sign out");
         },
       },
@@ -25,10 +24,9 @@ export default function SignOutButton() {
   return (
     <button
       onClick={handleSignOut}
-      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-400 hover:text-red-400 hover:bg-white/5 rounded-lg transition-colors"
+      className="text-xs text-neutral-500 hover:text-red-400 transition-colors cursor-pointer px-2 py-1 rounded hover:bg-neutral-900"
     >
-      <LogOut size={18} />
-      <span>Sign Out</span>
+      Sign Out
     </button>
   );
 }

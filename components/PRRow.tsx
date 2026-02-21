@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, CheckCircle, XCircle, Clock, FileCode, TestTube, AlertTriangle } from "lucide-react";
+import GenerateTestsButton from "./GenerateTestsButton";
 
-// Define a type that matches the PR structure we expect
 interface ChangedFile {
   filename: string;
   status: string;
@@ -12,12 +11,31 @@ interface ChangedFile {
   patch?: string;
 }
 
+interface SuggestedTest {
+  filename: string;
+  content: string;
+  description: string;
+}
+
+interface GeneratedTestPRInfo {
+  id: string;
+  prNumber: number;
+  prUrl?: string | null;
+  status: string;
+  testsGenerated: number;
+  branchName: string;
+}
+
 interface PRData {
   id: string;
+  owner: string;
+  repo: string;
   prNumber: number;
   impactedTests: string[];
   skippedTests: string[];
-  changedFiles?: ChangedFile[] | any; // Use any for loose JSON typing from Prisma
+  changedFiles?: ChangedFile[] | any;
+  suggestedTests?: SuggestedTest[] | any;
+  generatedTestPR?: GeneratedTestPRInfo | null;
   testsRun?: number | null;
   testsFailed?: number | null;
   timeSaved?: string | null;
@@ -27,157 +45,232 @@ interface PRData {
 
 export default function PRRow({ pr }: { pr: PRData }) {
   const [expanded, setExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState<"impact" | "generated" | "changes">("impact");
 
-  // Calculate percentages/stats
   const totalTests = pr.impactedTests.length + pr.skippedTests.length;
-  const impactedPercentage = totalTests > 0 ? Math.round((pr.impactedTests.length / totalTests) * 100) : 0;
-
-  // Status determination
-  const hasImpacted = pr.impactedTests.length > 0;
-  const statusColor = hasImpacted ? "text-amber-400" : "text-emerald-400";
-  const StatusIcon = hasImpacted ? AlertTriangle : CheckCircle;
+  const savedPercent = totalTests > 0 ? Math.round((pr.skippedTests.length / totalTests) * 100) : 0;
+  const suggestedTests: SuggestedTest[] = Array.isArray(pr.suggestedTests) ? pr.suggestedTests : [];
 
   return (
-    <div className="bg-zinc-900/50 border border-white/5 rounded-xl overflow-hidden hover:border-white/10 transition-colors">
+    <div className="border border-neutral-800 rounded-lg overflow-hidden bg-neutral-950 hover:border-neutral-700 transition-colors">
+      {/* Header Row */}
       <div
-        className="p-4 flex items-center gap-4 cursor-pointer hover:bg-white/5 transition-colors"
+        className="px-5 py-4 flex items-center gap-5 cursor-pointer hover:bg-neutral-900/50 transition-colors select-none"
         onClick={() => setExpanded(!expanded)}
       >
-        <button className="text-gray-400 hover:text-white transition-colors">
-          {expanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
-        </button>
+        {/* Expand indicator */}
+        <span className="text-neutral-600 text-xs font-mono w-4 shrink-0">
+          {expanded ? "−" : "+"}
+        </span>
 
-        <div className="flex-1 min-w-0 grid grid-cols-12 gap-4 items-center">
-            {/* PR Info */}
-            <div className="col-span-4 flex items-center gap-3">
-                <div className={`p-2 rounded-lg bg-zinc-800 ${statusColor} bg-opacity-10`}>
-                    <StatusIcon className={`w-5 h-5 ${statusColor}`} />
-                </div>
-                <div>
-                    <h4 className="text-white font-medium truncate">PR #{pr.prNumber}</h4>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <Clock className="w-3 h-3" />
-                        <span>{new Date(pr.createdAt).toLocaleString()}</span>
-                    </div>
-                </div>
-            </div>
+        {/* PR Info */}
+        <div className="min-w-[120px]">
+          <h4 className="text-white font-semibold text-sm">PR #{pr.prNumber}</h4>
+          <p className="text-neutral-600 text-[11px] font-mono mt-0.5">
+            {new Date(pr.createdAt).toLocaleDateString()}
+            {pr.headSha && <span className="ml-1.5 text-neutral-700">{pr.headSha.substring(0, 7)}</span>}
+          </p>
+        </div>
 
-            {/* Stats */}
-            <div className="col-span-8 flex items-center justify-between gap-6">
-                <div className="flex flex-col items-center">
-                    <span className="text-xs text-gray-400 uppercase tracking-wider mb-1">Impacted</span>
-                    <span className="text-amber-400 font-bold">{pr.impactedTests.length}</span>
-                </div>
+        {/* Stats */}
+        <div className="flex-1 flex items-center gap-8 justify-center">
+          <div className="text-center">
+            <p className="text-[10px] uppercase tracking-[0.15em] text-neutral-600 mb-0.5">Impacted</p>
+            <p className="text-red-400 font-bold text-sm tabular-nums">{pr.impactedTests.length}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-[10px] uppercase tracking-[0.15em] text-neutral-600 mb-0.5">Skipped</p>
+            <p className="text-yellow-400 font-bold text-sm tabular-nums">{pr.skippedTests.length}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-[10px] uppercase tracking-[0.15em] text-neutral-600 mb-0.5">Generated</p>
+            <p className="text-green-400 font-bold text-sm tabular-nums">{suggestedTests.length}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-[10px] uppercase tracking-[0.15em] text-neutral-600 mb-0.5">Saved</p>
+            <p className="text-neutral-300 font-bold text-sm">{pr.timeSaved || `${savedPercent}%`}</p>
+          </div>
+        </div>
 
-                <div className="flex flex-col items-center">
-                    <span className="text-xs text-gray-400 uppercase tracking-wider mb-1">Skipped</span>
-                    <span className="text-gray-400 font-bold">{pr.skippedTests.length}</span>
-                </div>
-
-                <div className="flex flex-col items-center">
-                    <span className="text-xs text-gray-400 uppercase tracking-wider mb-1">Saved</span>
-                    <span className="text-emerald-400 font-bold">{pr.timeSaved || "0s"}</span>
-                </div>
-
-                {pr.headSha && (
-                    <div className="text-xs font-mono text-gray-600 bg-black/30 px-2 py-1 rounded border border-white/5">
-                        {pr.headSha.substring(0, 7)}
-                    </div>
-                )}
-            </div>
+        {/* Generate Tests Button */}
+        <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+          <GenerateTestsButton
+            owner={pr.owner}
+            repo={pr.repo}
+            prNumber={pr.prNumber}
+            evaluationId={pr.id}
+            existingGenPR={pr.generatedTestPR ? {
+              prUrl: pr.generatedTestPR.prUrl,
+              prNumber: pr.generatedTestPR.prNumber,
+              testsGenerated: pr.generatedTestPR.testsGenerated,
+              status: pr.generatedTestPR.status,
+            } : null}
+          />
         </div>
       </div>
 
+      {/* Expanded Content */}
       {expanded && (
-        <div className="border-t border-white/5 bg-black/20 p-6 grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-top-2 duration-200">
-            {/* Impacted Tests Column */}
-            <div className="space-y-3">
-                <div className="flex items-center gap-2 text-amber-400 mb-2">
-                    <AlertTriangle className="w-4 h-4" />
-                    <h5 className="font-semibold text-sm uppercase tracking-wider">Impacted Tests ({pr.impactedTests.length})</h5>
+        <div className="border-t border-neutral-800">
+          {/* Tabs */}
+          <div className="flex border-b border-neutral-800 bg-neutral-900/50">
+            {([
+              { key: "impact" as const, label: "Impact Analysis" },
+              { key: "generated" as const, label: `Generated Tests (${suggestedTests.length})` },
+              { key: "changes" as const, label: `Code Changes (${pr.changedFiles?.length || 0})` },
+            ]).map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`px-5 py-3 text-xs font-medium transition-colors cursor-pointer ${
+                  activeTab === tab.key
+                    ? "text-white border-b-2 border-white bg-black/30"
+                    : "text-neutral-500 hover:text-neutral-300"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab: Impact Analysis */}
+          {activeTab === "impact" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-neutral-800 bg-black/40">
+              {/* Impacted Tests */}
+              <div className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h5 className="text-xs font-semibold uppercase tracking-[0.15em] text-red-400/80">
+                    Impacted Tests
+                  </h5>
+                  <span className="text-[10px] font-mono text-neutral-600">{pr.impactedTests.length}</span>
                 </div>
                 {pr.impactedTests.length > 0 ? (
-                    <div className="space-y-2">
-                        {pr.impactedTests.map((test, index) => (
-                            <div key={index} className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10 text-sm">
-                                <TestTube className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-                                <span className="text-gray-300 break-all font-mono text-xs">{test}</span>
-                            </div>
-                        ))}
-                    </div>
+                  <div className="space-y-1">
+                    {pr.impactedTests.map((test, i) => (
+                      <div key={i} className="flex items-start gap-2.5 py-1.5 px-3 rounded bg-red-500/5 border border-red-500/10">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0 mt-1" />
+                        <span className="text-neutral-300 font-mono text-xs break-all leading-relaxed">{test}</span>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
-                    <div className="text-gray-500 text-sm italic">No tests impacted</div>
+                  <p className="text-neutral-700 text-xs italic">No tests impacted</p>
                 )}
-            </div>
+              </div>
 
-
-            {/* Skipped Tests Column */}
-            <div className="space-y-3">
-                <div className="flex items-center gap-2 text-gray-400 mb-2">
-                    <CheckCircle className="w-4 h-4" />
-                    <h5 className="font-semibold text-sm uppercase tracking-wider">Skipped Tests ({pr.skippedTests.length})</h5>
+              {/* Skipped Tests */}
+              <div className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h5 className="text-xs font-semibold uppercase tracking-[0.15em] text-yellow-400/80">
+                    Skipped Tests
+                  </h5>
+                  <span className="text-[10px] font-mono text-neutral-600">{pr.skippedTests.length}</span>
                 </div>
                 {pr.skippedTests.length > 0 ? (
-                    <div className="space-y-1">
-                        {pr.skippedTests.slice(0, 5).map((test, index) => (
-                            <div key={index} className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/5 text-xs text-gray-500 transition-colors">
-                                <span className="w-1.5 h-1.5 rounded-full bg-gray-600 shrink-0" />
-                                <span className="truncate font-mono">{test}</span>
-                            </div>
-                        ))}
-                        {pr.skippedTests.length > 5 && (
-                            <div className="text-xs text-gray-600 pl-6 pt-1">
-                                + {pr.skippedTests.length - 5} more skipped tests
-                            </div>
-                        )}
-                    </div>
+                  <div className="space-y-1">
+                    {pr.skippedTests.slice(0, 10).map((test, i) => (
+                      <div key={i} className="flex items-start gap-2.5 py-1.5 px-3 rounded bg-yellow-500/5 border border-yellow-500/10">
+                        <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 shrink-0 mt-1" />
+                        <span className="text-neutral-400 font-mono text-xs truncate">{test}</span>
+                      </div>
+                    ))}
+                    {pr.skippedTests.length > 10 && (
+                      <p className="text-neutral-600 text-[11px] pl-4 pt-1">
+                        + {pr.skippedTests.length - 10} more
+                      </p>
+                    )}
+                  </div>
                 ) : (
-                    <div className="text-gray-500 text-sm italic">No tests skipped</div>
+                  <p className="text-neutral-700 text-xs italic">No tests skipped</p>
                 )}
+              </div>
             </div>
+          )}
 
-            {/* Code Changes Section - Full Width */}
-            <div className="col-span-1 md:col-span-2 border-t border-white/5 pt-6 mt-2">
-                <div className="flex items-center gap-2 text-indigo-400 mb-4">
-                    <FileCode className="w-4 h-4" />
-                    <h5 className="font-semibold text-sm uppercase tracking-wider">Code Changes ({pr.changedFiles?.length || 0})</h5>
+          {/* Tab: Generated Tests */}
+          {activeTab === "generated" && (
+            <div className="bg-black/40 p-5">
+              {suggestedTests.length > 0 ? (
+                <div className="space-y-3">
+                  {suggestedTests.map((test: SuggestedTest, i: number) => (
+                    <div key={i} className="rounded border border-neutral-800 overflow-hidden">
+                      <div className="px-4 py-2.5 bg-neutral-900 border-b border-neutral-800 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+                          <span className="font-mono text-xs text-green-300">{test.filename}</span>
+                        </div>
+                        <span className="text-[10px] text-neutral-600 max-w-[300px] truncate">{test.description}</span>
+                      </div>
+                      <pre className="p-4 overflow-x-auto text-xs font-mono text-neutral-400 leading-relaxed whitespace-pre-wrap bg-black/60">
+                        {test.content}
+                      </pre>
+                    </div>
+                  ))}
+                  {pr.generatedTestPR?.prUrl && (
+                    <div className="pt-2 border-t border-neutral-800 mt-4">
+                      <a
+                        href={pr.generatedTestPR.prUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-green-400/70 hover:text-green-400 transition-colors"
+                      >
+                        View PR #{pr.generatedTestPR.prNumber} →
+                      </a>
+                    </div>
+                  )}
                 </div>
-
-                {pr.changedFiles && pr.changedFiles.length > 0 ? (
-                    <div className="space-y-4">
-                        {pr.changedFiles.map((file: ChangedFile, index: number) => (
-                            <div key={index} className="rounded-lg overflow-hidden border border-white/10 bg-black/40">
-                                <div className="px-4 py-2 bg-white/5 flex items-center justify-between border-b border-white/5">
-                                    <span className="text-sm font-mono text-gray-300">{file.filename}</span>
-                                    <div className="flex items-center gap-3 text-xs">
-                                        <span className="text-emerald-400">+{file.additions}</span>
-                                        <span className="text-red-400">-{file.deletions}</span>
-                                    </div>
-                                </div>
-                                {file.patch ? (
-                                    <div className="p-4 overflow-x-auto">
-                                        <pre className="text-xs font-mono text-gray-400 leading-relaxed whitespace-pre-wrap">
-                                            {file.patch.split('\n').map((line, i) => (
-                                                <div key={i} className={`
-                                                    ${line.startsWith('+') ? 'bg-emerald-500/10 text-emerald-300 block w-full -mx-4 px-4' : ''}
-                                                    ${line.startsWith('-') ? 'bg-red-500/10 text-red-300 block w-full -mx-4 px-4' : ''}
-                                                    ${line.startsWith('@@') ? 'text-indigo-400 py-1 block' : ''}
-                                                `}>
-                                                    {line}
-                                                </div>
-                                            ))}
-                                        </pre>
-                                    </div>
-                                ) : (
-                                    <div className="p-4 text-xs text-gray-600 italic">Binary file or no diff available</div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="text-gray-500 text-sm italic">No code changes recorded for this analysis.</div>
-                )}
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-neutral-600 text-sm mb-1">No tests generated yet</p>
+                  <p className="text-neutral-700 text-xs">Click "Generate Tests" to create AI-powered test cases for this PR.</p>
+                </div>
+              )}
             </div>
+          )}
+
+          {/* Tab: Code Changes */}
+          {activeTab === "changes" && (
+            <div className="bg-black/40 p-5">
+              {pr.changedFiles && pr.changedFiles.length > 0 ? (
+                <div className="space-y-3">
+                  {pr.changedFiles.map((file: ChangedFile, i: number) => (
+                    <div key={i} className="rounded border border-neutral-800 overflow-hidden">
+                      <div className="px-4 py-2 bg-neutral-900 border-b border-neutral-800 flex items-center justify-between">
+                        <span className="font-mono text-xs text-neutral-300">{file.filename}</span>
+                        <div className="flex items-center gap-3 text-xs font-mono">
+                          <span className="text-green-400">+{file.additions}</span>
+                          <span className="text-red-400">-{file.deletions}</span>
+                        </div>
+                      </div>
+                      {file.patch ? (
+                        <div className="overflow-x-auto">
+                          <pre className="text-xs font-mono leading-relaxed whitespace-pre-wrap">
+                            {file.patch.split('\n').map((line, j) => (
+                              <div
+                                key={j}
+                                className={`px-4 py-px ${
+                                  line.startsWith('+') ? 'bg-green-500/8 text-green-300' :
+                                  line.startsWith('-') ? 'bg-red-500/8 text-red-300' :
+                                  line.startsWith('@@') ? 'bg-neutral-900 text-neutral-500 py-1' :
+                                  'text-neutral-500'
+                                }`}
+                              >
+                                {line}
+                              </div>
+                            ))}
+                          </pre>
+                        </div>
+                      ) : (
+                        <div className="px-4 py-3 text-xs text-neutral-600">Binary file or no diff available</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-neutral-600 text-xs text-center py-8">No code changes recorded.</p>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

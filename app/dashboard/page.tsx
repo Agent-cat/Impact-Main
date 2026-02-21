@@ -2,14 +2,6 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import {
-  CheckCircle2,
-  XCircle,
-  Clock,
-  Zap,
-  GitPullRequest,
-  Search,
-} from "lucide-react";
 import Link from "next/link";
 
 export default async function DashboardPage() {
@@ -23,6 +15,7 @@ export default async function DashboardPage() {
 
   const evaluations = await prisma.pREvaluation.findMany({
     orderBy: { createdAt: "desc" },
+    include: { generatedTestPR: true },
   });
 
   const totalAnalyses = evaluations.length;
@@ -36,6 +29,10 @@ export default async function DashboardPage() {
     0,
   );
   const totalTests = totalSkipped + totalImpacted;
+  const totalTestsGenerated = evaluations.reduce(
+    (acc, curr) => acc + (curr.generatedTestPR?.testsGenerated || 0),
+    0,
+  );
 
   const avgTimeSaved =
     totalTests > 0 ? Math.round((totalSkipped / totalTests) * 100) : 0;
@@ -52,35 +49,32 @@ export default async function DashboardPage() {
   const passRate =
     totalRuns > 0
       ? Math.round(((totalRuns - totalFailures) / totalRuns) * 100)
-      : 0; // Default to 100 if no runs? Or 0.
+      : 0;
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA]">
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <div className="min-h-screen bg-black">
+      {/* Nav */}
+      <nav className="bg-black border-b border-neutral-800 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="bg-indigo-600 p-1.5 rounded-lg">
-              <Zap className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-linear-to-r from-indigo-600 to-violet-600">
-              ImpacAnalyzer
-            </span>
+            <span className="text-lg font-bold text-white">ImpacAnalyzer</span>
+            <span className="text-[10px] font-mono text-neutral-600 border border-neutral-800 px-1.5 py-0.5 rounded">dashboard</span>
           </div>
           <div className="flex items-center gap-4">
             <Link
               href="/"
-              className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors"
+              className="text-xs font-medium text-neutral-500 hover:text-white transition-colors"
             >
               Repositories
             </Link>
-            <div className="h-8 w-px bg-gray-200"></div>
+            <div className="h-5 w-px bg-neutral-800"></div>
             <div className="flex items-center gap-2">
               <img
                 src={session.user.image || ""}
-                className="w-8 h-8 rounded-full border border-gray-200"
+                className="w-7 h-7 rounded-full border border-neutral-700"
                 alt=""
               />
-              <span className="text-sm text-gray-700 hidden sm:block">
+              <span className="text-xs text-neutral-400 hidden sm:block">
                 {session.user.name}
               </span>
             </div>
@@ -89,74 +83,72 @@ export default async function DashboardPage() {
       </nav>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
-              AI Analysis Dashboard
-            </h1>
-            <p className="text-gray-500 mt-1">
-              Monitor PR impact analysis and CI time savings.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="bg-white border border-gray-200 rounded-lg px-4 py-2 flex items-center gap-2 shadow-sm">
-              <Search className="w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Filter PRs..."
-                className="bg-transparent border-none focus:ring-0 text-sm w-48"
-              />
-            </div>
-          </div>
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-white">
+            Analysis Dashboard
+          </h1>
+          <p className="text-neutral-600 text-sm mt-1">
+            Monitor PR impact analysis and CI time savings.
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
           <StatsCard
-            title="Total Analyses"
+            title="Analyses"
             value={totalAnalyses.toString()}
-            sub="Lifetime"
-            icon={<Clock className="w-5 h-5 text-indigo-500" />}
+            color="text-white"
           />
           <StatsCard
-            title="Avg. Time Saved"
-            value={`${avgTimeSaved}%`}
-            sub="Based on skipped tests"
-            icon={<Zap className="w-5 h-5 text-amber-500" />}
+            title="Impacted"
+            value={totalImpacted.toLocaleString()}
+            color="text-red-400"
           />
           <StatsCard
-            title="Tests Skipped"
+            title="Skipped"
             value={totalSkipped.toLocaleString()}
-            sub="Total redundant tests avoided"
-            icon={<CheckCircle2 className="w-5 h-5 text-emerald-500" />}
+            color="text-yellow-400"
+          />
+          <StatsCard
+            title="Generated"
+            value={totalTestsGenerated.toLocaleString()}
+            color="text-green-400"
+          />
+          <StatsCard
+            title="Time Saved"
+            value={`${avgTimeSaved}%`}
+            color="text-white"
           />
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-          <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-            <h2 className="font-semibold text-gray-800">Recent Evaluations</h2>
+        {/* Evaluations Table */}
+        <div className="border border-neutral-800 rounded-lg overflow-hidden">
+          <div className="px-5 py-3 border-b border-neutral-800 bg-neutral-950 flex justify-between items-center">
+            <h2 className="text-sm font-semibold text-neutral-400 uppercase tracking-[0.15em]">Recent Evaluations</h2>
+            <span className="text-[10px] text-neutral-600 font-mono">{evaluations.length} total</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                  <th className="px-6 py-4">Repository / PR</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Impacted</th>
-                  <th className="px-6 py-4">Skipped</th>
-                  <th className="px-6 py-4">Time Saved</th>
-                  <th className="px-6 py-4">Date</th>
+                <tr className="text-[10px] font-semibold text-neutral-600 uppercase tracking-[0.15em] border-b border-neutral-800/50">
+                  <th className="px-5 py-3">Repository / PR</th>
+                  <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3">Impacted</th>
+                  <th className="px-5 py-3">Skipped</th>
+                  <th className="px-5 py-3">Generated</th>
+                  <th className="px-5 py-3">Saved</th>
+                  <th className="px-5 py-3">Date</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-neutral-800/50">
                 {evaluations.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={6}
-                      className="px-6 py-12 text-center text-gray-500"
+                      colSpan={7}
+                      className="px-5 py-12 text-center text-neutral-600 text-sm"
                     >
-                      No evaluations found. Connect a repo and open a PR to
-                      start.
+                      No evaluations found. Connect a repo and open a PR to start.
                     </td>
                   </tr>
                 ) : (
@@ -164,85 +156,73 @@ export default async function DashboardPage() {
                     const isPending = ev.testsRun === null;
                     const hasFailures = (ev.testsFailed || 0) > 0;
                     const localTimeSaved =
-                      ev.testsRun !== null &&
-                      ev.impactedTests.length > 0 &&
-                      ev.skippedTests.length > 0
+                      ev.impactedTests.length > 0 && ev.skippedTests.length > 0
                         ? Math.round(
                             (ev.skippedTests.length /
-                              (ev.skippedTests.length +
-                                ev.impactedTests.length)) *
+                              (ev.skippedTests.length + ev.impactedTests.length)) *
                               100,
                           )
                         : 0;
+                    const genTests = ev.generatedTestPR?.testsGenerated || 0;
 
                     return (
                       <tr
                         key={ev.id}
-                        className="hover:bg-gray-50/50 transition-colors"
+                        className="hover:bg-neutral-950 transition-colors"
                       >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="bg-gray-100 p-2 rounded-lg">
-                              <GitPullRequest className="w-4 h-4 text-gray-600" />
-                            </div>
-                            <div>
-                              <Link
-                                href={`/${ev.owner}/${ev.repo}`}
-                                className="font-medium text-gray-900 hover:text-indigo-600 transition-colors"
-                              >
-                                {ev.owner}/{ev.repo}
-                              </Link>
-                              <div className="text-xs text-gray-500 flex items-center gap-1">
-                                <span>PR #{ev.prNumber}</span>
-                                {ev.headSha && (
-                                  <>
-                                    <span>•</span>
-                                    <span className="font-mono bg-gray-100 px-1 rounded text-[10px]">
-                                      {ev.headSha.substring(0, 7)}
-                                    </span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
+                        <td className="px-5 py-3.5">
+                          <Link
+                            href={`/${ev.owner}/${ev.repo}`}
+                            className="text-sm font-medium text-white hover:text-neutral-300 transition-colors"
+                          >
+                            {ev.owner}/{ev.repo}
+                          </Link>
+                          <div className="text-[11px] text-neutral-600 flex items-center gap-1.5 mt-0.5 font-mono">
+                            <span>#{ev.prNumber}</span>
+                            {ev.headSha && (
+                              <>
+                                <span className="text-neutral-700">·</span>
+                                <span className="text-neutral-700">{ev.headSha.substring(0, 7)}</span>
+                              </>
+                            )}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-5 py-3.5">
                           {isPending ? (
-                            <div className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100 w-fit">
-                              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
-                              Running
-                            </div>
+                            <span className="text-[11px] font-medium text-neutral-400">
+                              ● Running
+                            </span>
                           ) : hasFailures ? (
-                            <div className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-red-50 text-red-700 border border-red-100 w-fit">
-                              <XCircle className="w-3 h-3" />
-                              Failed ({ev.testsFailed})
-                            </div>
+                            <span className="text-[11px] font-medium text-red-400">
+                              ✕ Failed ({ev.testsFailed})
+                            </span>
                           ) : (
-                            <div className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 w-fit">
-                              <CheckCircle2 className="w-3 h-3" />
-                              Passed
-                            </div>
+                            <span className="text-[11px] font-medium text-green-400">
+                              ✓ Passed
+                            </span>
                           )}
                         </td>
-                        <td className="px-6 py-4">
-                          <span className="font-semibold text-indigo-600">
+                        <td className="px-5 py-3.5">
+                          <span className="font-bold text-red-400 text-sm tabular-nums">
                             {ev.impactedTests.length}
                           </span>
-                          <span className="text-gray-400 text-sm"> tests</span>
                         </td>
-                        <td className="px-6 py-4">
-                          <span className="text-gray-700">
+                        <td className="px-5 py-3.5">
+                          <span className="font-bold text-yellow-400 text-sm tabular-nums">
                             {ev.skippedTests.length}
                           </span>
-                          <span className="text-gray-400 text-sm"> tests</span>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-1 text-amber-600 font-bold">
-                            <Zap className="w-3.5 h-3.5 fill-amber-500" />
+                        <td className="px-5 py-3.5">
+                          <span className={`font-bold text-sm tabular-nums ${genTests > 0 ? 'text-green-400' : 'text-neutral-700'}`}>
+                            {genTests}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className="text-white font-bold text-sm">
                             {ev.timeSaved ? ev.timeSaved : localTimeSaved + "%"}
-                          </div>
+                          </span>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
+                        <td className="px-5 py-3.5 text-xs text-neutral-600 tabular-nums">
                           {new Date(ev.createdAt).toLocaleDateString()}
                         </td>
                       </tr>
@@ -261,26 +241,18 @@ export default async function DashboardPage() {
 function StatsCard({
   title,
   value,
-  sub,
-  icon,
+  color,
 }: {
   title: string;
   value: string;
-  sub: string;
-  icon: React.ReactNode;
+  color: string;
 }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-sm font-medium text-gray-500 uppercase tracking-tight">
-          {title}
-        </span>
-        <div className="bg-gray-50 p-2 rounded-lg">{icon}</div>
-      </div>
-      <div className="flex items-baseline gap-2">
-        <span className="text-3xl font-bold text-gray-900">{value}</span>
-        <span className="text-xs text-gray-400 font-medium">{sub}</span>
-      </div>
+    <div className="bg-neutral-950 border border-neutral-800 rounded-lg p-4">
+      <p className="text-[10px] font-semibold text-neutral-600 uppercase tracking-[0.15em] mb-2">
+        {title}
+      </p>
+      <p className={`text-2xl font-bold ${color} tabular-nums`}>{value}</p>
     </div>
   );
 }

@@ -1,0 +1,19 @@
+services:
+  impacanalyzer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agentcat1/impacanalyzer:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - DATABASE_URL=${DATABASE_URL}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+    env_file:
+      - .env
+    restart: unless-stopped

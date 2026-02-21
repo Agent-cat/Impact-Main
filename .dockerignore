@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+.gitignore
+.env*
+*.md
+.vscode
+.DS_Store
+bun.lock

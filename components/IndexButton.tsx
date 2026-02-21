@@ -2,7 +2,6 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 
 export default function IndexButton({ owner, repo }: { owner: string; repo: string }) {
@@ -34,20 +33,13 @@ export default function IndexButton({ owner, repo }: { owner: string; repo: stri
     <button
       onClick={handleIndex}
       disabled={loading}
-      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+      className={`px-3 py-1.5 rounded text-xs font-medium transition-all cursor-pointer ${
         done
-        ? "bg-emerald-900/20 text-emerald-400 border border-emerald-900/50"
-        : "bg-indigo-900/20 text-indigo-400 border border-indigo-900/50 hover:bg-indigo-900/30"
+        ? "bg-green-500/10 text-green-400 border border-green-500/20"
+        : "bg-neutral-900 text-neutral-300 border border-neutral-700 hover:bg-neutral-800 hover:text-white"
       }`}
     >
-      {loading ? (
-        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-      ) : done ? (
-        <Check className="w-3.5 h-3.5" />
-      ) : (
-        <Search className="w-3.5 h-3.5" />
-      )}
-      {loading ? "Indexing..." : done ? "Indexed" : "Build Index"}
+      {loading ? "Indexing..." : done ? "✓ Indexed" : "Build Index"}
     </button>
   );
 }

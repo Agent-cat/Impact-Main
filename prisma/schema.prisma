@@ -90,11 +90,34 @@ model PREvaluation {
   testsFailed  Int?
   timeSaved    String?
 
+  // AI-generated test suggestions
+  suggestedTests Json?         // Array of { filename, content, description }
+  generatedTestPR GeneratedTestPR?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([owner, repo, prNumber, headSha])
   @@index([owner, repo, prNumber])
+}
+
+model GeneratedTestPR {
+  id              String   @id @default(cuid())
+  evaluationId    String   @unique
+  evaluation      PREvaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+
+  owner           String
+  repo            String
+  prNumber        Int       // The new PR number for the generated tests
+  branchName      String
+  status          String    @default("pending") // pending, created, merged, closed
+  testsGenerated  Int       @default(0)
+  prUrl           String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([owner, repo])
 }
 
 model RepoIndex {
